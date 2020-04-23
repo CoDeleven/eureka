@@ -45,6 +45,8 @@ public interface EurekaInstanceConfig {
     /**
      * Get the unique Id (within the scope of the appName) of this instance to be registered with eureka.
      *
+     * 使用当前这个应用实例的ID（在同一个appName中唯一即可） 注册到 Eureka上
+     *
      * @return the (appname scoped) unique id for this instance
      */
     String getInstanceId();
@@ -52,6 +54,7 @@ public interface EurekaInstanceConfig {
     /**
      * Get the name of the application to be registered with eureka.
      *
+     * 获取 要注册给eureka的 appname
      * @return string denoting the name.
      */
     String getAppname();
@@ -59,6 +62,7 @@ public interface EurekaInstanceConfig {
     /**
      * Get the name of the application group to be registered with eureka.
      *
+     * 获取要注册到eureka上的 appGroupName（组名)
      * @return string denoting the name.
      */
     String getAppGroupName();
@@ -70,6 +74,11 @@ public interface EurekaInstanceConfig {
      *
      * :( public API typos are the worst. I think this was meant to be "OnInit".
      *
+     * 注册到服务器上之后是否就能直接对外使用。
+     * 如果注册后需要执行一些操作(比如注册完需要做一些处理的)才能对外使用，务必要设置为false
+     *
+     * 这里有个失误：对外的接口名称写错了：OnInit写成了Onit，因为是对外的公共API方法，所以不好改了
+     *
      * @return true to immediately start taking traffic, false otherwise.
      */
     boolean isInstanceEnabledOnit();
@@ -77,6 +86,8 @@ public interface EurekaInstanceConfig {
     /**
      * Get the <code>non-secure</code> port on which the instance should receive
      * traffic.
+     *
+     * 获取 非安全的端口（即HTTP端口）
      *
      * @return the non-secure port on which the instance should receive traffic.
      */
@@ -86,6 +97,8 @@ public interface EurekaInstanceConfig {
      * Get the <code>Secure port</code> on which the instance should receive
      * traffic.
      *
+     * 获取 安全的端口（即HTTPS的端口）
+     *
      * @return the secure port on which the instance should receive traffic.
      */
     int getSecurePort();
@@ -93,6 +106,8 @@ public interface EurekaInstanceConfig {
     /**
      * Indicates whether the <code>non-secure</code> port should be enabled for
      * traffic or not.
+     *
+     * 是否启用HTTP端口，true表示启用，false表示不启用
      *
      * @return true if the <code>non-secure</code> port is enabled, false
      *         otherwise.
@@ -102,6 +117,8 @@ public interface EurekaInstanceConfig {
     /**
      * Indicates whether the <code>secure</code> port should be enabled for
      * traffic or not.
+     *
+     * 是否启用HTTPS端口，true表示启用，false表示不启用
      *
      * @return true if the <code>secure</code> port is enabled, false otherwise.
      */
@@ -120,6 +137,10 @@ public interface EurekaInstanceConfig {
      * {@link HealthCheckCallback} and then decides to make itself unavailable.
      * </p>
      *
+     * 多久需要发送一次心跳给eureka服务器（告诉eureka服务器，自己还活着）
+     * 如果eureka服务器，在getLeaseExpirationDurationInSeconds()的时间段内都没有再收到心跳
+     * 就把当前这个实例移除，然后就不能访问这个实例了
+     *
      * @return time in seconds
      */
     int getLeaseRenewalIntervalInSeconds();
@@ -137,6 +158,11 @@ public interface EurekaInstanceConfig {
      * the value specified in {@link #getLeaseRenewalIntervalInSeconds()}
      * .
      * </p>
+     *
+     * 表示 eureka服务器多久时间不收到心跳，就将eureka实例移除
+     * 如果该值太大了，那么即使eureka实例已经挂掉了，它也还会在服务单上，能被其他应用访问；
+     * 如果该值太小了，一点小故障（马上恢复）就会让eureka实例从服务单上消失，其他应用获取不到
+     * 这个值至少要比 getLeaseRenewalIntervalInSeconds() 设定的值高一点
      *
      * @return value indicating time in seconds.
      */
@@ -178,6 +204,8 @@ public interface EurekaInstanceConfig {
      * automatically put an instance out of service after the instance is
      * launched and it has been disabled for traffic..
      *
+     * TODO 涉及AWS的云知识，就不分析了，等以后用到了AWS相关的再来补充
+     *
      * @return the autoscaling group name associated with this instance.
      */
     String getASGName();
@@ -185,6 +213,8 @@ public interface EurekaInstanceConfig {
     /**
      * Gets the hostname associated with this instance. This is the exact name
      * that would be used by other instances to make calls.
+     *
+     * 获取主机名称
      *
      * @param refresh
      *            true if the information needs to be refetched, false
@@ -198,6 +228,8 @@ public interface EurekaInstanceConfig {
      * Gets the metadata name/value pairs associated with this instance. This
      * information is sent to eureka server and can be used by other instances.
      *
+     * 自定义的一些元注解Map信息，这些信息会被发送给eureka server，可以被其他实例看到
+     *
      * @return Map containing application-specific metadata.
      */
     Map<String, String> getMetadataMap();
@@ -206,6 +238,9 @@ public interface EurekaInstanceConfig {
      * Returns the data center this instance is deployed. This information is
      * used to get some AWS specific instance information if the instance is
      * deployed in AWS.
+     *
+     * 获取数据中心信息，在AWS云服务器上用这个可以获取到云服务器的一些信息
+     * 可以看 com.netflix.appinfo.AmazonInfo 这个类，如果用的是AWS云，就会使用这个DataCenterInfo
      *
      * @return information that indicates which data center this instance is
      *         deployed in.
@@ -216,6 +251,8 @@ public interface EurekaInstanceConfig {
      * Get the IPAdress of the instance. This information is for academic
      * purposes only as the communication from other instances primarily happen
      * using the information supplied in {@link #getHostName(boolean)}.
+     *
+     * 获取当前这个实例的IP地址
      *
      * @return the ip address of this instance.
      */
@@ -233,6 +270,9 @@ public interface EurekaInstanceConfig {
      * about the status of this instance. Users can provide a simple
      * <code>HTML</code> indicating what is the current status of the instance.
      * </p>
+     *
+     * 获取相对路径格式的 状态页面URL（status page）
+     * 这个页面受 getHostName、getSecurePort、getNonSecurePort 参数的影响
      *
      * @return - relative <code>URL</code> that specifies the status page.
      */
@@ -369,6 +409,9 @@ public interface EurekaInstanceConfig {
 
     /**
      * Get the namespace used to find properties.
+     *
+     * 查找properties的前缀，比如eureka.port、eureka.hostname，这里的eureka就是namespace
+     *
      * @return the namespace used to find properties.
      */
     String getNamespace();
