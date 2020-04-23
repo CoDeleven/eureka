@@ -57,7 +57,7 @@ public class ExampleEurekaService {
 
 
     public static void main(String[] args) {
-
+        System.setProperty("eureka.serviceUrl.defaultZone", "http://DESKTOP-UM3O4BQ:8080/v2/");
         DynamicPropertyFactory configInstance = com.netflix.config.DynamicPropertyFactory.getInstance();
         ApplicationInfoManager applicationInfoManager = initializeApplicationInfoManager(new MyDataCenterInstanceConfig());
         EurekaClient eurekaClient = initializeEurekaClient(applicationInfoManager, new DefaultEurekaClientConfig());

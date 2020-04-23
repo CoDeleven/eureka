@@ -67,29 +67,36 @@ public class EurekaClientServerRestIntegrationTest {
 
     private static String eurekaServiceUrl;
 
+    /**
+     * 这一步主要是启动eureka服务器
+     * 开始该单元测试之前执行
+     * @throws Exception
+     */
     @BeforeClass
     public static void setUp() throws Exception {
+        // 注入服务端的配置
         injectEurekaConfiguration();
         startServer();
-        createEurekaServerConfig();
+//        createEurekaServerConfig();
 
-        httpClientFactory = JerseyEurekaHttpClientFactory.newBuilder()
+        /*httpClientFactory = JerseyEurekaHttpClientFactory.newBuilder()
                 .withClientName("testEurekaClient")
                 .withConnectionTimeout(1000)
                 .withReadTimeout(1000)
                 .withMaxConnectionsPerHost(1)
                 .withMaxTotalConnections(1)
                 .withConnectionIdleTimeout(1000)
-                .build();
+                .build();*/
 
-        jerseyEurekaClient = httpClientFactory.newClient(new DefaultEndpoint(eurekaServiceUrl));
+//        jerseyEurekaClient = httpClientFactory.newClient(new DefaultEndpoint(eurekaServiceUrl));
 
-        ServerCodecs serverCodecs = new DefaultServerCodecs(eurekaServerConfig);
-        jerseyReplicationClient = JerseyReplicationClient.createReplicationClient(
+//        ServerCodecs serverCodecs = new DefaultServerCodecs(eurekaServerConfig);
+/*        jerseyReplicationClient = JerseyReplicationClient.createReplicationClient(
                 eurekaServerConfig,
                 serverCodecs,
                 eurekaServiceUrl
-        );
+        );*/
+        Thread.sleep(Integer.MAX_VALUE);
     }
 
     @AfterClass
@@ -207,24 +214,31 @@ public class EurekaClientServerRestIntegrationTest {
     }
 
     /**
-     * This will be read by server internal discovery client. We need to salience it.
+     * 服务端的配置
      */
     private static void injectEurekaConfiguration() throws UnknownHostException {
+        // 获取本机的host，一般都是localhost
         String myHostName = InetAddress.getLocalHost().getHostName();
+        System.out.println(myHostName);
+        // serviceurl
         String myServiceUrl = "http://" + myHostName + ":8080/v2/";
-
+        // 启动的区域是default
         System.setProperty("eureka.region", "default");
-        System.setProperty("eureka.name", "eureka");
-        System.setProperty("eureka.vipAddress", "eureka.mydomain.net");
+        System.setProperty("eureka.name", "eureka-server-app-name");
+        System.setProperty("eureka.instanceId", "eureka-server-instance-id");
+        // 不设置vipaddress
+//        System.setProperty("eureka.vipAddress", "eureka.mydomain.net");
+        // 设置启动的端口
         System.setProperty("eureka.port", "8080");
-        System.setProperty("eureka.preferSameZone", "false");
-        System.setProperty("eureka.shouldUseDns", "false");
+//        System.setProperty("eureka.preferSameZone", "false");
+//        System.setProperty("eureka.shouldUseDns", "false");
         System.setProperty("eureka.shouldFetchRegistry", "false");
+        System.setProperty("registration.enabled", "false");
         System.setProperty("eureka.serviceUrl.defaultZone", myServiceUrl);
-        System.setProperty("eureka.serviceUrl.default.defaultZone", myServiceUrl);
-        System.setProperty("eureka.awsAccessId", "fake_aws_access_id");
-        System.setProperty("eureka.awsSecretKey", "fake_aws_secret_key");
-        System.setProperty("eureka.numberRegistrySyncRetries", "0");
+//        System.setProperty("eureka.serviceUrl.default.defaultZone", myServiceUrl);
+//        System.setProperty("eureka.awsAccessId", "fake_aws_access_id");
+//        System.setProperty("eureka.awsSecretKey", "fake_aws_secret_key");
+//        System.setProperty("eureka.numberRegistrySyncRetries", "0");
     }
 
     private static void removeEurekaConfiguration() {
@@ -232,13 +246,15 @@ public class EurekaClientServerRestIntegrationTest {
     }
 
     private static void startServer() throws Exception {
-        File warFile = findWar();
+//        File warFile = findWar();
 
         server = new Server(8080);
 
         WebAppContext webapp = new WebAppContext();
         webapp.setContextPath("/");
-        webapp.setWar(warFile.getAbsolutePath());
+//        webapp.setWar(warFile.getAbsolutePath());
+        // 设定要加载的资源路径
+        webapp.setResourceBase("src/main/webapp");
         server.setHandler(webapp);
 
         server.start();
@@ -246,6 +262,10 @@ public class EurekaClientServerRestIntegrationTest {
         eurekaServiceUrl = "http://localhost:8080/v2";
     }
 
+    /**
+     * 正常情况下是需要执行war打包，然后测试的时候会读取war包内的文件
+     * @return
+     */
     private static File findWar() {
         File dir = null;
         for (String candidate : EUREKA1_WAR_DIRS) {
