@@ -40,17 +40,30 @@ public class TimedSupervisorTask extends TimerTask {
     private final AtomicLong delay;
     private final long maxDelay;
 
+    /**
+     *
+     * @param name String 任务名称
+     * @param scheduler ScheduledExecutorService 执行器
+     * @param executor ThreadPoolExecutor 线程执行器
+     * @param timeout int 过期时间
+     * @param timeUnit TimeUnit 时间单位
+     * @param expBackOffBound int 可以延迟的次数
+     * @param task Runnable 要执行的任务
+     */
     public TimedSupervisorTask(String name, ScheduledExecutorService scheduler, ThreadPoolExecutor executor,
                                int timeout, TimeUnit timeUnit, int expBackOffBound, Runnable task) {
         this.name = name;
         this.scheduler = scheduler;
         this.executor = executor;
+        // 超时时间
         this.timeoutMillis = timeUnit.toMillis(timeout);
         this.task = task;
         this.delay = new AtomicLong(timeoutMillis);
+        // 允许最大延迟时间
         this.maxDelay = timeoutMillis * expBackOffBound;
 
         // Initialize the counters and register.
+        // 计数器，用来检测程序的
         successCounter = Monitors.newCounter("success");
         timeoutCounter = Monitors.newCounter("timeouts");
         rejectedCounter = Monitors.newCounter("rejectedExecutions");
@@ -63,18 +76,27 @@ public class TimedSupervisorTask extends TimerTask {
     public void run() {
         Future<?> future = null;
         try {
+            // 执行任务
             future = executor.submit(task);
+            // 给检测器传值
             threadPoolLevelGauge.set((long) executor.getActiveCount());
+            // 阻塞并设置超时时间
             future.get(timeoutMillis, TimeUnit.MILLISECONDS);  // block until done or timeout
+            // 执行任务成功，重置延迟的时间
             delay.set(timeoutMillis);
             threadPoolLevelGauge.set((long) executor.getActiveCount());
+            // 执行成功次数计数器+1
             successCounter.increment();
         } catch (TimeoutException e) {
             logger.warn("task supervisor timed out", e);
+            // 超时计数器+1
             timeoutCounter.increment();
-
+            // 获取当前的延迟时间，然后延长 执行任务的延迟时间
             long currentDelay = delay.get();
+            // currentDelay * 2 < maxDelay
+            // 最大延迟时间不超过maxDelay
             long newDelay = Math.min(maxDelay, currentDelay * 2);
+            // 设置delay，然后再finally里面重新计划
             delay.compareAndSet(currentDelay, newDelay);
 
         } catch (RejectedExecutionException e) {
@@ -97,8 +119,9 @@ public class TimedSupervisorTask extends TimerTask {
             if (future != null) {
                 future.cancel(true);
             }
-
+            // 如果没有结束
             if (!scheduler.isShutdown()) {
+                // 计划继续执行，任务执行延迟时间为delay
                 scheduler.schedule(this, delay.get(), TimeUnit.MILLISECONDS);
             }
         }

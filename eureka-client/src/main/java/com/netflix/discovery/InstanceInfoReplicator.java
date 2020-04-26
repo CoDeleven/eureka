@@ -124,7 +124,9 @@ class InstanceInfoReplicator implements Runnable {
         } catch (Throwable t) {
             logger.warn("There was a problem with the instance info replicator", t);
         } finally {
+            // 执行定时任务
             Future next = scheduler.schedule(this, replicationIntervalSeconds, TimeUnit.SECONDS);
+            // 设置引用
             scheduledPeriodicRef.set(next);
         }
     }
