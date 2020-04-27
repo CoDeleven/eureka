@@ -45,19 +45,30 @@ import static com.netflix.appinfo.PropertyBasedInstanceConfigConstants.*;
  * to <em>eureka-client.properties</em>.
  * </p>
  *
+ *
+ *
  * @author Karthik Ranganathan
  *
  */
 public abstract class PropertiesInstanceConfig extends AbstractInstanceConfig implements EurekaInstanceConfig {
-
+    // 名称空间
     protected final String namespace;
+    // Archaius工具，可以用来动态加载配置
     protected final DynamicPropertyFactory configInstance;
+    // Eureka实例的应用分组名称的默认值
     private String appGrpNameFromEnv;
 
     public PropertiesInstanceConfig() {
+        // 使用默认名称空间，即eureka
         this(CommonConstants.DEFAULT_CONFIG_NAMESPACE);
     }
 
+    /**
+     * 默认情况下使用，使用自定义的DataCenterInfo（MyOwn）；AWS情况下，使用AmazonInfo（Amazon）
+     * TODO 目前接触不太到DataCenterInfo，等以后有新体会了再来补上作用
+     *
+     * @param namespace
+     */
     public PropertiesInstanceConfig(String namespace) {
         this(namespace, new DataCenterInfo() {
             @Override
@@ -69,14 +80,16 @@ public abstract class PropertiesInstanceConfig extends AbstractInstanceConfig im
 
     public PropertiesInstanceConfig(String namespace, DataCenterInfo info) {
         super(info);
-
+        // 处理namespace，要求namespace后面有个"."
         this.namespace = namespace.endsWith(".")
                 ? namespace
                 : namespace + ".";
-
+        // 和Archaius相关的配置获取，就是获取配置的 FALLBACK_APP_GROUP_KEY 变量，如果不存在就是用 UNKNOWN_APPLICATION 作为默认值
+        // TODO Archaius不太熟，这一块不知道怎么说
         appGrpNameFromEnv = ConfigurationManager.getConfigInstance()
                 .getString(FALLBACK_APP_GROUP_KEY, Values.UNKNOWN_APPLICATION);
-
+        // 加载 eureka-client.properties 配置文件
+        // TODO 熟悉Archaius后再补充吧
         this.configInstance = Archaius1Utils.initConfig(CommonConstants.CONFIG_FILE_NAME);
     }
 
@@ -207,17 +220,26 @@ public abstract class PropertiesInstanceConfig extends AbstractInstanceConfig im
      * metadata keys are searched under the namespace
      * <code>eureka.appinfo.metadata</code>.
      * </p>
+     *
+     * 获取metadata集合，如果外部传入的namespace为eureka.appinfo，那么配置文件中就会
+     * 加载eureka
      */
     @Override
     public Map<String, String> getMetadataMap() {
         String metadataNamespace = namespace + INSTANCE_METADATA_PREFIX + ".";
         Map<String, String> metadataMap = new LinkedHashMap<String, String>();
+        // 加载配置
         Configuration config = (Configuration) configInstance.getBackingConfigurationSource();
+        // 获取完整符合要求的metadataNamespace
         String subsetPrefix = metadataNamespace.charAt(metadataNamespace.length() - 1) == '.'
                 ? metadataNamespace.substring(0, metadataNamespace.length() - 1)
                 : metadataNamespace;
+        // config.subset() 用来获取指定前缀的配置项；org.apache.commons.configuration.Configuration.getKeys()获取键名
+        // 遍历
         for (Iterator<String> iter = config.subset(subsetPrefix).getKeys(); iter.hasNext(); ) {
+            // 获取下一个配置项的key
             String key = iter.next();
+            // 获取指定键名的值
             String value = config.getString(subsetPrefix + "." + key);
             metadataMap.put(key, value);
         }

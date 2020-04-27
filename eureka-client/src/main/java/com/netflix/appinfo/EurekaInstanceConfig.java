@@ -272,7 +272,7 @@ public interface EurekaInstanceConfig {
      * </p>
      *
      * 获取相对路径格式的 状态页面URL（status page）
-     * 这个页面受 getHostName、getSecurePort、getNonSecurePort 参数的影响
+     * statusPage的绝对路径由 getHostName、getSecurePort、getNonSecurePort 一起构成
      *
      * @return - relative <code>URL</code> that specifies the status page.
      */
@@ -284,6 +284,9 @@ public interface EurekaInstanceConfig {
      * resides in the same instance talking to eureka, else in the cases where
      * the instance is a proxy for some other server, users can provide the full
      * {@link java.net.URL}. If the full {@link java.net.URL} is provided it takes precedence.
+     *
+     * 获取绝对路径的 状态页面URL
+     * 可以使用占位符${eureka.hostname}
      *
      * <p>
      * * It is normally used for informational purposes for other services to
@@ -305,6 +308,9 @@ public interface EurekaInstanceConfig {
      * unsecure as specified in {@link #getSecurePort()} and
      * {@link #getNonSecurePort()}.
      *
+     * 获取homepage的相对路径。这个信息是暴露给服务调用者使用的（了解当前实例的一些信息），项目中不会有特别的含义
+     * （下面那段就是说homepage这个信息是暴露给外部其他服务用的）
+     *
      * <p>
      * It is normally used for informational purposes for other services to use
      * it as a landing page.
@@ -320,6 +326,10 @@ public interface EurekaInstanceConfig {
      * same instance talking to eureka, else in the cases where the instance is
      * a proxy for some other server, users can provide the full {@link java.net.URL}. If
      * the full {@link java.net.URL} is provided it takes precedence.
+     *
+     * 获取homepage的绝对路径。调用InstanceInfo.setHomePageUrl()方法时，如果存在绝对路径，
+     * 就会使用绝对路径并替换占位符；如果不存在绝对路径，但存在相对路径，
+     * 就拼装相对路径为绝对路径保存到homePageUrl变量中
      *
      * <p>
      * It is normally used for informational purposes for other services to use
@@ -339,6 +349,8 @@ public interface EurekaInstanceConfig {
      * unsecure as specified in {@link #getSecurePort()} and
      * {@link #getNonSecurePort()}.
      *
+     * 获取检查实例健康状态的相对路径。作用和homePage差不多，都是给对外的service使用的
+     *
      * <p>
      * It is normally used for making educated decisions based on the health of
      * the instance - for example, it can be used to determine whether to
@@ -357,6 +369,9 @@ public interface EurekaInstanceConfig {
      * cases where the instance is a proxy for some other server, users can
      * provide the full {@link java.net.URL}. If the full {@link java.net.URL} is provided it
      * takes precedence.
+     *
+     * 获取检查实例健康状态的绝对路径。
+     * 设置healthCheck的时候用 配置的主机名 替换占位符${eureka.hostname}
      *
      * <p>
      * It is normally used for making educated decisions based on the health of
@@ -378,6 +393,8 @@ public interface EurekaInstanceConfig {
      * the cases where the instance is a proxy for some other server, users can
      * provide the full {@link java.net.URL}. If the full {@link java.net.URL} is provided it
      * takes precedence.
+     *
+     * 带有https的健康检查绝对路径
      *
      * <p>
      * It is normally used for making educated decisions based on the health of
@@ -401,6 +418,10 @@ public interface EurekaInstanceConfig {
      * for the expression of an ordered list of fields that can be used to resolve the default
      * address. The exact field values will depend on the implementation details of the corresponding
      * implementing DataCenterInfo types.
+     *
+     * 对于服务器集群来说，他们可以通过主机名访问自己一个互联网内的主机；也可以通过IP访问互联网上的主机
+     * 所以为了将这些地址集合起来，就有了这个方法（这个方法大概率对标AWS的）
+     * TODO 以后有了AWS部署经验来补充
      *
      * @return an ordered list of fields that should be used to preferentially
      *         resolve this instance's default address, empty String[] for default.

@@ -23,6 +23,12 @@ import javax.inject.Singleton;
 /**
  * An {@link InstanceInfo} configuration for the non-AWS datacenter.
  *
+ * 非AWS服务器使用的 实例配置类，主要特点就是能自定义命名空间
+ * 假设要设置eureka应用的端口，默认情况下是使用eureka.port来设置的
+ * 如果配置了namespace，比如codeleven_eureka，那么配置端口时就要使用codeleven_eureka.port来设置
+ *
+ * ？？使用自定义命名空间可以防止配置冲突，但是什么情况下需要防止配置冲突呢？？
+ *
  * @author Karthik Ranganathan
  *
  */
@@ -33,6 +39,9 @@ public class MyDataCenterInstanceConfig extends PropertiesInstanceConfig impleme
     public MyDataCenterInstanceConfig() {
     }
 
+    /**
+     * @param namespace 命名空间
+     */
     public MyDataCenterInstanceConfig(String namespace) {
         super(namespace);
     }
