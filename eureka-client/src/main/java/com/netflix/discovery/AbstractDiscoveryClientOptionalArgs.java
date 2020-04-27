@@ -22,18 +22,19 @@ import com.netflix.eventbus.spi.EventBus;
  * <T> The type for client supplied filters (supports jersey1 and jersey2)
  */
 public abstract class AbstractDiscoveryClientOptionalArgs<T> {
+    // 健康检查回调器 Provider，HealthCheckCallback已经被废弃
     Provider<HealthCheckCallback> healthCheckCallbackProvider;
-
+    // 健康检查回调器 Provider，HealthCheckHandler替代HealthCheckCallback
     Provider<HealthCheckHandler> healthCheckHandlerProvider;
-
+    // 注册前处理钩子类
     PreRegistrationHandler preRegistrationHandler;
-
+    // Jersey过滤器
     Collection<T> additionalFilters;
-
+    // Jersey客户端
     EurekaJerseyClient eurekaJerseyClient;
-    
+    // 已经没有使用了
     TransportClientFactory transportClientFactory;
-    
+    // Jersey客户端工厂的工厂
     TransportClientFactories transportClientFactories;
 
     private Set<EurekaEventListener> eventListeners;

@@ -178,7 +178,9 @@ public class DiscoveryClient implements EurekaClient {
     private InstanceInfoReplicator instanceInfoReplicator;
 
     private volatile int registrySize = 0;
+    // 最后一次成功拉取注册信息的时间戳，每次拉取后都会更新
     private volatile long lastSuccessfulRegistryFetchTimestamp = -1;
+    // 最后一次成功发送心跳的时间戳，每次发送心跳成功后都会更新
     private volatile long lastSuccessfulHeartbeatTimestamp = -1;
     private final ThresholdLevelsMetric heartbeatStalenessMonitor;
     private final ThresholdLevelsMetric registryStalenessMonitor;
@@ -338,20 +340,26 @@ public class DiscoveryClient implements EurekaClient {
         InstanceInfo myInfo = applicationInfoManager.getInfo();
 
         clientConfig = config;
+        // 该属性被废弃
         staticClientConfig = clientConfig;
+        // 获取网络传输层的配置
         transportConfig = config.getTransportConfig();
         instanceInfo = myInfo;
-        // app路径标识符
         if (myInfo != null) {
+            // app路径标识符，没啥太大用处，看了IDEA的usage，发现都是log的时候用到该属性
+            // 所以该属性应该就是输出日志的时候用的
             appPathIdentifier = instanceInfo.getAppName() + "/" + instanceInfo.getId();
         } else {
             logger.warn("Setting instanceInfo to a passed in null value");
         }
 
         this.backupRegistryProvider = backupRegistryProvider;
+        // TODO 服务端点随即器，说实话还不知道啥用的
         this.endpointRandomizer = endpointRandomizer;
+        // TODO 这个是URL随机器，也不太清除干啥用的
         this.urlRandomizer = new EndpointUtils.InstanceInfoBasedUrlRandomizer(instanceInfo);
-        // 设置一个空的Application集合
+        // 设置一个空的Application集合，因为还没有开始拉取注册信息，所以本地的应用实例信息是空的
+        // 如果拉取了就会缓存到localRegionApps里面
         localRegionApps.set(new Applications());
         // 获取注册信息的年代（取一次加一）
         fetchRegistryGeneration = new AtomicLong(0);
@@ -359,13 +367,13 @@ public class DiscoveryClient implements EurekaClient {
         remoteRegionsToFetch = new AtomicReference<String>(clientConfig.fetchRegistryForRemoteRegions());
         // 远程region列表
         remoteRegionsRef = new AtomicReference<>(remoteRegionsToFetch.get() == null ? null : remoteRegionsToFetch.get().split(","));
-        // 监控器，主要用来监控注册频率的
+        // TODO 监控器，主要用来监控注册频率的。但是怎么使用还是有点问题
         if (config.shouldFetchRegistry()) {
             this.registryStalenessMonitor = new ThresholdLevelsMetric(this, METRIC_REGISTRY_PREFIX + "lastUpdateSec_", new long[]{15L, 30L, 60L, 120L, 240L, 480L});
         } else {
             this.registryStalenessMonitor = ThresholdLevelsMetric.NO_OP_METRIC;
         }
-        // 监控器，发送心跳的频率
+        // TODO 监控器，主要检测发送心跳的频率。怎么使用的还是有问题
         if (config.shouldRegisterWithEureka()) {
             this.heartbeatStalenessMonitor = new ThresholdLevelsMetric(this, METRIC_REGISTRATION_PREFIX + "lastHeartbeatSec_", new long[]{15L, 30L, 60L, 120L, 240L, 480L});
         } else {
@@ -380,14 +388,17 @@ public class DiscoveryClient implements EurekaClient {
             heartbeatExecutor = null;
             cacheRefreshExecutor = null;
             eurekaTransport = null;
+            // 一个实例区域检查器，可以检测某个实例的区域名字、判断某个区域是否为本地区域
             instanceRegionChecker = new InstanceRegionChecker(new PropertyBasedAzToRegionMapper(config), clientConfig.getRegion());
 
             // This is a bit of hack to allow for existing code using DiscoveryManager.getInstance()
             // to work with DI'd DiscoveryClient
+            // 下面这两行已经废弃了，因为现在的EurekaClient使用了DI（Guice框架），以前是手动的
             DiscoveryManager.getInstance().setDiscoveryClient(this);
             DiscoveryManager.getInstance().setEurekaClientConfig(config);
-
+            // 初始化DiscoveryClient的时间
             initTimestampMs = System.currentTimeMillis();
+            // 初始化情况下，注册信息的数量
             initRegistrySize = this.getApplications().size();
             registrySize = initRegistrySize;
             logger.info("Discovery Client initialized at timestamp {} with initial instances count: {}",
@@ -398,12 +409,13 @@ public class DiscoveryClient implements EurekaClient {
 
         try {
             // default size of 2 - 1 each for heartbeat and cacheRefresh
+            // 定时任务线程池，一个给heartbeatExecutor用，一个给cacheRefreshExecutor用
             scheduler = Executors.newScheduledThreadPool(2,
                     new ThreadFactoryBuilder()
                             .setNameFormat("DiscoveryClient-%d")
                             .setDaemon(true)
                             .build());
-
+            // 心跳执行器
             heartbeatExecutor = new ThreadPoolExecutor(
                     1, clientConfig.getHeartbeatExecutorThreadPoolSize(), 0, TimeUnit.SECONDS,
                     new SynchronousQueue<Runnable>(),
@@ -412,7 +424,7 @@ public class DiscoveryClient implements EurekaClient {
                             .setDaemon(true)
                             .build()
             );  // use direct handoff
-
+            // 缓存刷新执行器
             cacheRefreshExecutor = new ThreadPoolExecutor(
                     1, clientConfig.getCacheRefreshExecutorThreadPoolSize(), 0, TimeUnit.SECONDS,
                     new SynchronousQueue<Runnable>(),

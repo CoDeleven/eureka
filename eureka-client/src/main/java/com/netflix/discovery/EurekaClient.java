@@ -34,6 +34,8 @@ public interface EurekaClient extends LookupService {
     // ========================
 
     /**
+     * 根据区域获取应用信息集合
+     *
      * @param region the region that the Applications reside in
      * @return an {@link com.netflix.discovery.shared.Applications} for the matching region. a Null value
      *         is treated as the local region.
