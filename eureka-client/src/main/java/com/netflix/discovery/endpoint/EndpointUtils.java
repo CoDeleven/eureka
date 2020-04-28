@@ -317,29 +317,46 @@ public class EndpointUtils {
     public static Map<String, List<String>> getZoneBasedDiscoveryUrlsFromRegion(EurekaClientConfig clientConfig, String region) {
         String discoveryDnsName = null;
         try {
+            // 构造域名，一般都是 txt.REGION_NAME.DOMAIN
+            // 比如我codeleven的域名是codeleven.cn，我要查询的区域叫做region2
+            // 那么这里的discoveryDnsName就是 txt.region2.codeleven.cn
             discoveryDnsName = "txt." + region + "." + clientConfig.getEurekaServerDNSName();
 
             logger.debug("The region url to be looked up is {} :", discoveryDnsName);
+            // 查询 discoveryDnsName 记录的域名集合
             Set<String> zoneCnamesForRegion = new TreeSet<String>(DnsResolver.getCNamesFromTxtRecord(discoveryDnsName));
+
             Map<String, List<String>> zoneCnameMapForRegion = new TreeMap<String, List<String>>();
+            // 遍历域名
             for (String zoneCname : zoneCnamesForRegion) {
                 String zone = null;
+
+                // 检查是否为ec2（估计是AWS的特色把）
                 if (isEC2Url(zoneCname)) {
+                    // 可以看出推荐的域名是 <zone>.<domain_name>
                     throw new RuntimeException(
                             "Cannot find the right DNS entry for "
                                     + discoveryDnsName
                                     + ". "
                                     + "Expected mapping of the format <aws_zone>.<domain_name>");
                 } else {
+                    // 按“.”分割域名
                     String[] cnameTokens = zoneCname.split("\\.");
+                    // 将域名的第一个.之前的词作为zone
+                    // 这样看来TXT记录的第一个词，必须是表示空间的，后面就无所了？？
                     zone = cnameTokens[0];
                     logger.debug("The zoneName mapped to region {} is {}", region, zone);
                 }
+                // 获取该空间 对应的 域名
+                // ？？这里为啥需要给个集合呢？？因为只有第一个词是表示空间，后面的并没有限定
+                // 比如 zone1.codeleven.cn zone1.nice.codeleven.cn zone1.good.codeleven.cn
                 List<String> zoneCnamesSet = zoneCnameMapForRegion.get(zone);
+                // 如果不存在就创建一个集合丢到 zoneCnameMapForRegion 中
                 if (zoneCnamesSet == null) {
                     zoneCnamesSet = new ArrayList<String>();
                     zoneCnameMapForRegion.put(zone, zoneCnamesSet);
                 }
+                // 把域名放入 zoneCnamesSet 集合中
                 zoneCnamesSet.add(zoneCname);
             }
             return zoneCnameMapForRegion;

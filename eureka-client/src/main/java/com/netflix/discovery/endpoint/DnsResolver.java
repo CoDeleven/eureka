@@ -125,17 +125,24 @@ public final class DnsResolver {
 
     /**
      * Looks up the DNS name provided in the JNDI context.
+     *
+     * 通过JNDI查询 DNS的TXT记录
      */
     public static Set<String> getCNamesFromTxtRecord(String discoveryDnsName) throws NamingException {
+        // 构建JNDI上下文，这里指定了要查询的域名，以及用什么方式去查
         Attributes attrs = getDirContext().getAttributes(discoveryDnsName, new String[]{TXT_RECORD_TYPE});
+        // 根据JNDI获取指定域名的TXT记录
         Attribute attr = attrs.get(TXT_RECORD_TYPE);
         String txtRecord = null;
+        // 获取结果不为空
         if (attr != null) {
             txtRecord = attr.get().toString();
 
             /**
              * compatible splited txt record of "host1 host2 host3" but not "host1" "host2" "host3".
              * some dns service provider support txt value only format "host1 host2 host3"
+             * 这部分是兼容性，如果返回的TXT记录 前后包含双引号，这里就把双引号移除了
+             * 可以看出来，TXT记录里面的域名是按空格划分的
              */
             if (txtRecord.startsWith("\"") && txtRecord.endsWith("\"")) {
                 txtRecord = txtRecord.substring(1, txtRecord.length() - 1);
@@ -146,6 +153,7 @@ public final class DnsResolver {
         if (txtRecord == null || txtRecord.trim().isEmpty()) {
             return cnamesSet;
         }
+        // 按空格划分域名
         String[] cnames = txtRecord.split(" ");
         Collections.addAll(cnamesSet, cnames);
         return cnamesSet;

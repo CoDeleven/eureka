@@ -169,7 +169,7 @@ public class DiscoveryClientResource extends ExternalResource {
             }
             bindProperty(EUREKA_TEST_NAMESPACE + "fetchRemoteRegionsRegistry", regions.substring(1));
         }
-
+        bindProperty(EUREKA_TEST_NAMESPACE + "eurekaServer.domainName", "codeleven.cn");
         // Registration
         bindProperty(EUREKA_TEST_NAMESPACE + "registration.enabled", Boolean.toString(registrationEnabled));
         bindProperty(EUREKA_TEST_NAMESPACE + "appinfo.initial.replicate.time", Integer.toString(0));
