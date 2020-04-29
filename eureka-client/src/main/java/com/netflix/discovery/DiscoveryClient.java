@@ -1550,9 +1550,12 @@ public class DiscoveryClient implements EurekaClient {
 
             boolean remoteRegionsModified = false;
             // This makes sure that a dynamic change to remote regions to fetch is honored.
+            // 这里动态获取要拉取注册信息的远程区域（最新的）
             String latestRemoteRegions = clientConfig.fetchRegistryForRemoteRegions();
             if (null != latestRemoteRegions) {
+                // 获取当前的 要拉取的远程区域（之前保存的）
                 String currentRemoteRegions = remoteRegionsToFetch.get();
+                // 如果两者不相等
                 if (!latestRemoteRegions.equals(currentRemoteRegions)) {
                     // Both remoteRegionsToFetch and AzToRegionMapper.regionsToFetch need to be in sync
                     synchronized (instanceRegionChecker.getAzToRegionMapper()) {
@@ -1568,10 +1571,12 @@ public class DiscoveryClient implements EurekaClient {
                     }
                 } else {
                     // Just refresh mapping to reflect any DNS/Property change
+                    // 如果两者一样，仅仅刷新可用空间 和 区域的映射
+                    // FIXME  ？？ 为什么要刷新呢？？
                     instanceRegionChecker.getAzToRegionMapper().refreshMapping();
                 }
             }
-
+            // 拉取注册信息（是不是很熟悉？没错，我们一开始调用过）
             boolean success = fetchRegistry(remoteRegionsModified);
             if (success) {
                 registrySize = localRegionApps.get().size();
