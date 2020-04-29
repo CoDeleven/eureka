@@ -438,15 +438,19 @@ public class DiscoveryClient implements EurekaClient {
             scheduleServerEndpointTask(eurekaTransport, args);
 
             AzToRegionMapper azToRegionMapper;
-            // 使用DNS拉去ServiceURLs
+            // 使用DNS 加载 可用空间 和 区域的映射
             if (clientConfig.shouldUseDnsForFetchingServiceUrls()) {
                 azToRegionMapper = new DNSBasedAzToRegionMapper(clientConfig);
             } else {
+                // 预先将可用空间 和 区域的映射 保存到配置文件中，然后使用配置文件去读
                 azToRegionMapper = new PropertyBasedAzToRegionMapper(clientConfig);
             }
+            // 如果存在需要加载的远程区域
             if (null != remoteRegionsToFetch.get()) {
+                // 这个方法里面会去设置 查询的远程区域 和 对应的可用空间
                 azToRegionMapper.setRegionsToFetch(remoteRegionsToFetch.get().split(","));
             }
+            // 实例区域检查器，传入azToRegionMapper，获取当前客户端配置里定义的区域
             instanceRegionChecker = new InstanceRegionChecker(azToRegionMapper, clientConfig.getRegion());
         } catch (Throwable e) {
             throw new RuntimeException("Failed to initialize DiscoveryClient!", e);

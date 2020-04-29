@@ -39,21 +39,25 @@ import org.slf4j.LoggerFactory;
 
 /**
  * An AWS specific {@link DataCenterInfo} implementation.
+ * AWS服务器上的DataCenterInfo实现（特指AWS上！！）
  *
  * <p>
  * Gets AWS specific information for registration with eureka by making a HTTP
  * call to an AWS service as recommended by AWS.
  * </p>
  *
+ * 对于AWS的服务器实例来说 可以发送HTTP给自己本机从而获取当前所在实例的一些配置信息
+ *
  * @author Karthik Ranganathan, Greg Kim
  *
  */
 @JsonDeserialize(using = StringInterningAmazonInfoBuilder.class)
 public class AmazonInfo implements DataCenterInfo, UniqueIdentifier {
-
+    // AWS官方指定的版本，latest
     private static final String AWS_API_VERSION = "latest";
+    // AWS官方指定的 获取实例配置信息的 地址
     private static final String AWS_METADATA_URL = "http://169.254.169.254/" + AWS_API_VERSION + "/meta-data/";
-
+    // Eureka需要用到的实例配置项
     public enum MetaDataKey {
         instanceId("instance-id"),  // always have this first as we use it as a fail fast mechanism
         amiId("ami-id"),
@@ -104,11 +108,11 @@ public class AmazonInfo implements DataCenterInfo, UniqueIdentifier {
 
         protected String name;
         protected String path;
-
+        // 枚举类的构造器
         MetaDataKey(String name) {
             this(name, "");
         }
-
+        // 枚举类的构造器
         MetaDataKey(String name, String path) {
             this.name = name;
             this.path = path;
@@ -123,6 +127,12 @@ public class AmazonInfo implements DataCenterInfo, UniqueIdentifier {
             return new URL(AWS_METADATA_URL + path + name);
         }
 
+        /**
+         * 读取HTTP响应的body，然后按照需要解析，这个是默认实现
+         * @param inputStream
+         * @return
+         * @throws IOException
+         */
         public String read(InputStream inputStream) throws IOException {
             BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
             String toReturn;
@@ -145,7 +155,6 @@ public class AmazonInfo implements DataCenterInfo, UniqueIdentifier {
         }
     }
 
-
     public static final class Builder {
         private static final Logger logger = LoggerFactory.getLogger(Builder.class);
         private static final int SLEEP_TIME_MS = 100;
@@ -163,12 +172,12 @@ public class AmazonInfo implements DataCenterInfo, UniqueIdentifier {
         public static Builder newBuilder() {
             return new Builder();
         }
-
+        // 手动增加metadata信息
         public Builder addMetadata(MetaDataKey key, String value) {
             result.metadata.put(key.getName(), value);
             return this;
         }
-
+        // 设置AmazonInfoConfig
         public Builder withAmazonInfoConfig(AmazonInfoConfig config) {
             this.config = config;
             return this;
@@ -187,6 +196,8 @@ public class AmazonInfo implements DataCenterInfo, UniqueIdentifier {
          * Build the {@link AmazonInfo} automatically via HTTP calls to instance
          * metadata API.
          *
+         * 构建AmazonInfo实例，构建的时候自动调用 获取当前实例元数据的HTTP接口
+         *
          * @param namespace the namespace to look for configuration properties.
          * @return the instance information specific to AWS.
          */
@@ -194,17 +205,22 @@ public class AmazonInfo implements DataCenterInfo, UniqueIdentifier {
             if (config == null) {
                 config = new Archaius1AmazonInfoConfig(namespace);
             }
-
+            // 遍历每一项要查询的配置项的key
             for (MetaDataKey key : MetaDataKey.values()) {
+                // 每个配置项允许重试的次数
                 int numOfRetries = config.getNumRetries();
                 while (numOfRetries-- > 0) {
                     try {
                         String mac = null;
+                        // 如果当前查询的配置项的key 是 vpcId，需要查询mac地址
                         if (key == MetaDataKey.vpcId) {
                             mac = result.metadata.get(MetaDataKey.mac.getName());  // mac should be read before vpcId due to declaration order
                         }
+                        // 对于vpcId的查询，需要使用到mac地址；其他配置项的查询不需要，所以直接给null就行
                         URL url = key.getURL(null, mac);
+                        // 调用工具读取指定配置项的值
                         String value = AmazonInfoUtils.readEc2MetadataUrl(key, url, config.getConnectTimeout(), config.getReadTimeout());
+                        // 如果存在指就设置
                         if (value != null) {
                             result.metadata.put(key.getName(), value);
                         }
@@ -214,6 +230,7 @@ public class AmazonInfo implements DataCenterInfo, UniqueIdentifier {
                         if (config.shouldLogAmazonMetadataErrors()) {
                             logger.warn("Cannot get the value for the metadata key: {} Reason :", key, e);
                         }
+                        // 如果发生异常就休息一会再重试
                         if (numOfRetries >= 0) {
                             try {
                                 Thread.sleep(SLEEP_TIME_MS);
@@ -224,9 +241,15 @@ public class AmazonInfo implements DataCenterInfo, UniqueIdentifier {
                         }
                     }
                 }
-
+                /*
+                 * 快速失败机制
+                 * 简单来说就是，我的instanceId在多次获取后都获取不到，后面的配置项估摸着也会获取不到，所以我先提前结束了
+                 */
+                // 如果当前查询的key是instanceId
                 if (key == MetaDataKey.instanceId
+                        // 开启了快速失败机制
                         && config.shouldFailFastOnFirstLoad()
+                        // 在一番努力查询后，我的配置结果集中仍然没有包含 instanceId 这个配置项，就直接结束
                         && !result.metadata.containsKey(MetaDataKey.instanceId.getName())) {
 
                     logger.warn("Skipping the rest of AmazonInfo init as we were not able to load instanceId after " +
@@ -239,6 +262,7 @@ public class AmazonInfo implements DataCenterInfo, UniqueIdentifier {
         }
     }
 
+    // AmazonInfo的属性，保存 配置项名称 => 配置项值 的映射关系
     private Map<String, String> metadata;
 
     public AmazonInfo() {

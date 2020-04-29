@@ -141,7 +141,7 @@ public final class DnsResolver {
             /**
              * compatible splited txt record of "host1 host2 host3" but not "host1" "host2" "host3".
              * some dns service provider support txt value only format "host1 host2 host3"
-             * 这部分是兼容性，如果返回的TXT记录 前后包含双引号，这里就把双引号移除了
+             * 这部分是兼容性(因为JNDI查询结果会带上双引号)，如果返回的TXT记录 前后包含双引号，这里就把双引号移除了
              * 可以看出来，TXT记录里面的域名是按空格划分的
              */
             if (txtRecord.startsWith("\"") && txtRecord.endsWith("\"")) {
