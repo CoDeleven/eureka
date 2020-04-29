@@ -285,14 +285,19 @@ public class Applications {
     /**
      * Shuffles a whole region so that the instances will not always be returned
      * in the same order.
-     * 
+     *
+     * 将一个区域内的所有实例都打乱，这要就不会总返回相同的顺序了
+     *
      * @param remoteRegionsRegistry
      *            the map of remote region names to their registries
+     *            区域名字 和 其实例应用信息集合 的映射关系
      * @param clientConfig
      *            the {@link EurekaClientConfig}, whose settings will be used to
      *            determine whether to filter to only UP instances
+     *            用来决定是否要过滤出UP状态的实例
      * @param instanceRegionChecker
      *            the instance region checker
+     *            实例区域检查器
      */
     public void shuffleAndIndexInstances(Map<String, Applications> remoteRegionsRegistry,
             EurekaClientConfig clientConfig, InstanceRegionChecker instanceRegionChecker) {
