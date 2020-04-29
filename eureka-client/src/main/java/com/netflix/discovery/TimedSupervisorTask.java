@@ -55,11 +55,13 @@ public class TimedSupervisorTask extends TimerTask {
         this.name = name;
         this.scheduler = scheduler;
         this.executor = executor;
-        // 超时时间
+        // 超时时间。转换为毫秒
         this.timeoutMillis = timeUnit.toMillis(timeout);
         this.task = task;
+        // 初始状态下的延迟时间
         this.delay = new AtomicLong(timeoutMillis);
-        // 允许最大延迟时间
+        // 允许最大延迟时间。比如第一次失败了，delay = delay * 2， 结果值不能超过 maxDelay
+        // 懂吧？就是定义一个最大的延迟时间
         this.maxDelay = timeoutMillis * expBackOffBound;
 
         // Initialize the counters and register.
@@ -76,13 +78,13 @@ public class TimedSupervisorTask extends TimerTask {
     public void run() {
         Future<?> future = null;
         try {
-            // 执行任务
+            // 执行任务，外部传入的
             future = executor.submit(task);
             // 给检测器传值
             threadPoolLevelGauge.set((long) executor.getActiveCount());
-            // 阻塞并设置超时时间
+            // 阻塞并设置超时时间，如果超时了就抛出异常并被捕获
             future.get(timeoutMillis, TimeUnit.MILLISECONDS);  // block until done or timeout
-            // 执行任务成功，重置延迟的时间
+            // 执行任务成功，重置延迟的时间（因为timeoutMillis 是通过delay获取来的）
             delay.set(timeoutMillis);
             threadPoolLevelGauge.set((long) executor.getActiveCount());
             // 执行成功次数计数器+1
@@ -121,7 +123,8 @@ public class TimedSupervisorTask extends TimerTask {
             }
             // 如果没有结束
             if (!scheduler.isShutdown()) {
-                // 计划继续执行，任务执行延迟时间为delay
+                // 重新设置下一个定时任务（从而达到每隔一段时间执行一次的效果）
+                // 任务执行延迟时间重新初始化为一开始的延迟时间
                 scheduler.schedule(this, delay.get(), TimeUnit.MILLISECONDS);
             }
         }
