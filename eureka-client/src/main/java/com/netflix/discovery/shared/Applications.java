@@ -48,7 +48,7 @@ import com.thoughtworks.xstream.annotations.XStreamImplicit;
 
 /**
  * The class that wraps all the registry information returned by eureka server.
- *
+ * 该类包含了所有从Eureka Server拉取来的注册信息
  * <p>
  * Note that the registry information is fetched from eureka server as specified
  * in {@link EurekaClientConfig#getRegistryFetchIntervalSeconds()}. Once the
@@ -79,7 +79,7 @@ public class Applications {
     }
 
     private static final String STATUS_DELIMITER = "_";
-
+    // 注册信息集合的hashcode
     private String appsHashCode;
     private Long versionDelta;
     @XStreamImplicit

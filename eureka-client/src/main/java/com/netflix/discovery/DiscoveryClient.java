@@ -1044,34 +1044,47 @@ public class DiscoveryClient implements EurekaClient {
         }
 
         // Notify about cache refresh before updating the instance remote status
+        // 缓存刷新了，触发事件
         onCacheRefreshed();
 
         // Update remote status based on refreshed data held in the cache
+        //
         updateInstanceRemoteStatus();
 
         // registry was fetched successfully, so return true
         return true;
     }
 
+    /**
+     * 更新本地的 lastRemoteInstanceStatus 属性
+     * 该属性的含义是：在远程EurekaServer眼中的 本应用实例状态
+     */
     private synchronized void updateInstanceRemoteStatus() {
         // Determine this instance's status for this app and set to UNKNOWN if not found
         InstanceInfo.InstanceStatus currentRemoteInstanceStatus = null;
         if (instanceInfo.getAppName() != null) {
+            // 获取本实例在新缓存（Applications）中的Application
             Application app = getApplication(instanceInfo.getAppName());
             if (app != null) {
+                // 根据本实例的id，获取新缓存的Application中的InstanceInfo
                 InstanceInfo remoteInstanceInfo = app.getByInstanceId(instanceInfo.getId());
+                // 保存变量
                 if (remoteInstanceInfo != null) {
                     currentRemoteInstanceStatus = remoteInstanceInfo.getStatus();
                 }
             }
         }
+        // 如果该值为空，比如找不到当前应用实例的情况下，就设置状态为UNKNOWN
         if (currentRemoteInstanceStatus == null) {
             currentRemoteInstanceStatus = InstanceInfo.InstanceStatus.UNKNOWN;
         }
 
         // Notify if status changed
+        // 如果本地该应用实例状态 和 远程服务器上拉取下来的该应用实例状态不一致
         if (lastRemoteInstanceStatus != currentRemoteInstanceStatus) {
+            // 触发 StatusChangeEvent 事件
             onRemoteStatusChanged(lastRemoteInstanceStatus, currentRemoteInstanceStatus);
+            // 在远程EurekaServer眼中的 本应用实例状态
             lastRemoteInstanceStatus = currentRemoteInstanceStatus;
         }
     }
@@ -1330,7 +1343,7 @@ public class DiscoveryClient implements EurekaClient {
             // registry cache refresh timer
             // 获取 拉取注册信息的时间间隔
             int registryFetchIntervalSeconds = clientConfig.getRegistryFetchIntervalSeconds();
-            //
+            // 缓存刷新功能，最大允许失败的次数
             int expBackOffBound = clientConfig.getCacheRefreshExecutorExponentialBackOffBound();
             // 创建带有监控功能的定时任务
             cacheRefreshTask = new TimedSupervisorTask(
