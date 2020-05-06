@@ -50,6 +50,9 @@ import org.slf4j.LoggerFactory;
  * and if not served my result in following full registry fetch from the client, they have relatively
  * higher priority. This is implemented by two parallel rate limiters, one for overall number of
  * full/delta fetches (higher threshold) and one for full fetches only (low threshold).
+ *
+ * 客户端的ID由 DiscoveryIdentity-Name 标识，默认的特权组会包含 DefaultClient 和 DefaultServer；开发者可以
+ * 通过getRateLimiterPrivilegedClients()自定义特权组。
  * <p>
  * The client is identified by {@link AbstractEurekaIdentity#AUTH_NAME_HEADER_KEY} HTTP header
  * value. The privileged group by default contains:
@@ -63,6 +66,8 @@ import org.slf4j.LoggerFactory;
  *     (internal only, traffic replication)
  * </li>
  * </ul>
+ * 可以通过打开isRateLimiterThrottleStandardClients()设置来开启对特权客户端的验证
+ *
  * It is possible to turn off privileged client filtering via
  * {@link EurekaServerConfig#isRateLimiterThrottleStandardClients()} property.
  * <p>
@@ -99,11 +104,13 @@ public class RateLimitingFilter implements Filter {
 
     /**
      * Includes both full and delta fetches.
+     * 全量和增量都支持的限流器？？！
      */
     private static final RateLimiter registryFetchRateLimiter = new RateLimiter(TimeUnit.SECONDS);
 
     /**
      * Only full registry fetches.
+     * 用于全量拉取的限流器
      */
     private static final RateLimiter registryFullFetchRateLimiter = new RateLimiter(TimeUnit.SECONDS);
 
@@ -129,14 +136,16 @@ public class RateLimitingFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        // 获取当前请求的类别
         Target target = getTarget(request);
+        // 如果target为OTHER，直接放行
         if (target == Target.Other) {
             chain.doFilter(request, response);
             return;
         }
 
         HttpServletRequest httpRequest = (HttpServletRequest) request;
-
+        // 判断该请求是否限速
         if (isRateLimited(httpRequest, target)) {
             incrementStats(target);
             if (serverConfig.isRateLimiterEnabled()) {
@@ -147,6 +156,11 @@ public class RateLimitingFilter implements Filter {
         chain.doFilter(request, response);
     }
 
+    /**
+     * 判断该请求是什么类型
+     * @param request ServletRequest Http请求
+     * @return Target：FullFetch、DeltaFetch、Application
+     */
     private static Target getTarget(ServletRequest request) {
         Target target = Target.Other;
         if (request instanceof HttpServletRequest) {
@@ -154,13 +168,18 @@ public class RateLimitingFilter implements Filter {
             String pathInfo = httpRequest.getRequestURI();
 
             if ("GET".equals(httpRequest.getMethod()) && pathInfo != null) {
+                // 判断路径中是否带有/apps/
                 Matcher matcher = TARGET_RE.matcher(pathInfo);
                 if (matcher.matches()) {
+                    //
                     if (matcher.groupCount() == 0 || matcher.group(1) == null || "/".equals(matcher.group(1))) {
+                        // 路径是 /apps/ 的就FullFetch
                         target = Target.FullFetch;
                     } else if ("/delta".equals(matcher.group(1))) {
+                        // 带有/delta的是DeltaFetch
                         target = Target.DeltaFetch;
                     } else {
+                        // 其他的为Application请求
                         target = Target.Application;
                     }
                 }
@@ -172,11 +191,19 @@ public class RateLimitingFilter implements Filter {
         return target;
     }
 
+    /**
+     * 判断是否要限速
+     * @param request 请求
+     * @param target 请求类型
+     * @return true为限速，false为不限速
+     */
     private boolean isRateLimited(HttpServletRequest request, Target target) {
+        // 判断是否有特权
         if (isPrivileged(request)) {
             logger.debug("Privileged {} request", target);
             return false;
         }
+        // 检查是否限流
         if (isOverloaded(target)) {
             logger.debug("Overloaded {} request; discarding it", target);
             return true;
@@ -185,20 +212,38 @@ public class RateLimitingFilter implements Filter {
         return false;
     }
 
+    /**
+     * 判断是否有特权
+     * @param request 请求
+     * @return true为有特权；false为没有特权
+     */
     private boolean isPrivileged(HttpServletRequest request) {
+        // 是否限制标准的客户端；如果为true，说明所有客户端（标准或非标准）都要限制
+        // 如果为false，说明只有非标准的客户端需要限制
         if (serverConfig.isRateLimiterThrottleStandardClients()) {
             return false;
         }
+        // 获取标准的客户端列表，只有客户端名字在这个列表中的才算特权客户端
         Set<String> privilegedClients = serverConfig.getRateLimiterPrivilegedClients();
+        // 获取Http请求头中的 DiscoveryIdentity-Name 字段
         String clientName = request.getHeader(AbstractEurekaIdentity.AUTH_NAME_HEADER_KEY);
+        // 判断该客户端是否在用户定义的特权客户端组内；或者属于默认的特权客户端
         return privilegedClients.contains(clientName) || DEFAULT_PRIVILEGED_CLIENTS.contains(clientName);
     }
 
+    /**
+     * 判断是否限流
+     * @param target 请求类型
+     * @return true为限流；false表示不限流
+     */
     private boolean isOverloaded(Target target) {
+        // 获取桶内最大令牌数量（也是允许通过的最大请求数量）
         int maxInWindow = serverConfig.getRateLimiterBurstSize();
+        // 获取拉取注册信息时的 令牌填充速率（包括增量和全量拉取，保证总的一个上限）
         int fetchWindowSize = serverConfig.getRateLimiterRegistryFetchAverageRate();
+        // 判断增量拉取是否限速，如果acquire为false，就说明要限流
         boolean overloaded = !registryFetchRateLimiter.acquire(maxInWindow, fetchWindowSize);
-
+        // 判断是否为全量拉取，如果是全量拉取，就判断全量拉取是否限速（仅针对全量拉取，保证全量拉取的上限，因为它耗费的资源多）
         if (target == Target.FullFetch) {
             int fullFetchWindowSize = serverConfig.getRateLimiterFullFetchAverageRate();
             overloaded |= !registryFullFetchRateLimiter.acquire(maxInWindow, fullFetchWindowSize);
@@ -206,6 +251,10 @@ public class RateLimitingFilter implements Filter {
         return overloaded;
     }
 
+    /**
+     * 递增计数器用的
+     * @param target
+     */
     private void incrementStats(Target target) {
         if (serverConfig.isRateLimiterEnabled()) {
             EurekaMonitors.RATE_LIMITED.increment();
