@@ -87,13 +87,15 @@ public class DiscoveryClientRegistryTest {
 
     @Test
     public void testGetByVipInLocalRegion() throws Exception {
+        // 模拟了四个Application
         Applications applications = InstanceInfoGenerator.newBuilder(4, "app1", "app2").build().toApplications();
+        // 获取app1组里面的第一个实例
         InstanceInfo instance = applications.getRegisteredApplications("app1").getInstances().get(0);
-
+        // 如果请求的 TEST_REMOTE_REGION 这个区域就返回上面四个APP
         when(requestHandler.getApplications(TEST_REMOTE_REGION)).thenReturn(
                 anEurekaHttpResponse(200, applications).type(MediaType.APPLICATION_JSON_TYPE).build()
         );
-
+        // getClient()会创建一个 DiscoveryClient ，然后根据VIP地址查询存在于该VIP地址上的所有实例，
         List<InstanceInfo> result = discoveryClientResource.getClient().getInstancesByVipAddress(instance.getVIPAddress(), false);
         assertThat(result.size(), is(equalTo(2)));
         assertThat(result.get(0).getVIPAddress(), is(equalTo(instance.getVIPAddress())));

@@ -171,10 +171,11 @@ public class DiscoveryClient implements EurekaClient {
     private volatile Map<String, Applications> remoteRegionVsApps = new ConcurrentHashMap<>();
     private volatile InstanceInfo.InstanceStatus lastRemoteInstanceStatus = InstanceInfo.InstanceStatus.UNKNOWN;
     private final CopyOnWriteArraySet<EurekaEventListener> eventListeners = new CopyOnWriteArraySet<>();
-
+    // app路径标识符，用于日志输出使用
     private String appPathIdentifier;
+    // 状态监听器。当ApplicationInfoManager的状态发生变化，ApplicationInfoManager会回调这里的状态监听器
     private ApplicationInfoManager.StatusChangeListener statusChangeListener;
-
+    // 实例信息更新器，用到了限流器，每次InstanceInfo的状态变更都会向注册中心registry()一次（即调用renew()）
     private InstanceInfoReplicator instanceInfoReplicator;
 
     private volatile int registrySize = 0;
@@ -182,7 +183,9 @@ public class DiscoveryClient implements EurekaClient {
     private volatile long lastSuccessfulRegistryFetchTimestamp = -1;
     // 最后一次成功发送心跳的时间戳，每次发送心跳成功后都会更新
     private volatile long lastSuccessfulHeartbeatTimestamp = -1;
+    // 心跳的监控器，用到servo
     private final ThresholdLevelsMetric heartbeatStalenessMonitor;
+    // 注册的监控器，用到servo
     private final ThresholdLevelsMetric registryStalenessMonitor;
 
     private final AtomicBoolean isShutdown = new AtomicBoolean(false);
