@@ -30,6 +30,11 @@ import org.slf4j.LoggerFactory;
 /**
  * The class that initializes information required for registration with
  * <tt>Eureka Server</tt> and to be discovered by other components.
+ * 这个类保存了要注册到Eureka Server的数据，该信息可以被其他组件所发现。
+ * 该对象是单例对象，一个Eureka实例只维护一个对象
+ *
+ * 上面说的数据主要来自EurekaInstanceConfig类，如果当前客户端是部署在AWS上的，那么就加载CloudInstanceConfig；
+ * 如果当前客户端没有部署在AWS上的，就使用MyDataCenterInstanceConfig
  *
  * <p>
  * The information required for registration is provided by the user by passing
@@ -54,15 +59,20 @@ public class ApplicationInfoManager {
             return prev;
         }
     };
-
+    // 单例 应用实例信息管理器
     private static ApplicationInfoManager instance = new ApplicationInfoManager(null, null, null);
-
+    // 状态变更监听器
     protected final Map<String, StatusChangeListener> listeners;
+    // 实例状态映射器，输入InstanceStatus，返回匹配项
     private final InstanceStatusMapper instanceStatusMapper;
-
+    // 实例数据，是数据！从EurekaInstanceConfig加载进来的
     private InstanceInfo instanceInfo;
+    // 配置项
     private EurekaInstanceConfig config;
 
+    /**
+     * 可选参数，外部传入
+     */
     public static class OptionalArgs {
         private InstanceStatusMapper instanceStatusMapper;
 
@@ -77,6 +87,7 @@ public class ApplicationInfoManager {
     }
 
     /**
+     * 该类应该被注入进来，不应该显示初始化；如果想显示初始化，请使用另外一个public构造器
      * public for DI use. This class should be in singleton scope so do not create explicitly.
      * Either use DI or create this explicitly using one of the other public constructors.
      */
@@ -119,9 +130,14 @@ public class ApplicationInfoManager {
         return instance;
     }
 
+    /**
+     * 初始化组件
+     * @param config EurekaInstanceConfig 实例配置
+     */
     public void initComponent(EurekaInstanceConfig config) {
         try {
             this.config = config;
+            // 根据实例配置信息，获取InstanceInfo数据
             this.instanceInfo = new EurekaConfigBasedInstanceInfoProvider(config).get();
         } catch (Throwable e) {
             throw new RuntimeException("Failed to initialize ApplicationInfoManager", e);
@@ -130,6 +146,8 @@ public class ApplicationInfoManager {
 
     /**
      * Gets the information about this instance that is registered with eureka.
+     *
+     * 获取实例信息数据，实例信息数据是要注册到Eureka服务器上的
      *
      * @return information about this instance that is registered with eureka.
      */
@@ -145,6 +163,10 @@ public class ApplicationInfoManager {
      * Register user-specific instance meta data. Application can send any other
      * additional meta data that need to be accessed for other reasons.The data
      * will be periodically sent to the eureka server.
+     * 可以将用户指定的元数据信息放到实例信息中。应用可以发送任何 需要被其他应用访问的元数据。这些数据会定期被送到Eureka服务器上
+     *
+     * 注意通过这种方式保存的元数据信息可能并不会在初始化注册就被发送给Eureka服务器；
+     * 如果想要一开始注册就发送，需要通过EurekaInstanceConfig.getMetadataMap()方法
      *
      * Please Note that metadata added via this method is not guaranteed to be submitted
      * to the eureka servers upon initial registration, and may be submitted as an update
@@ -158,6 +180,8 @@ public class ApplicationInfoManager {
     }
 
     /**
+     * 设置当前实例的状态。应用可以使用这个方法来决定是否 开始处理业务；设置状态的时候会发送状态变更的事件给所有已注册的监听器
+     *
      * Set the status of this instance. Application can use this to indicate
      * whether it is ready to receive traffic. Setting the status here also notifies all registered listeners
      * of a status change event.

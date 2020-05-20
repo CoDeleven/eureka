@@ -20,6 +20,10 @@ import org.slf4j.LoggerFactory;
  * InstanceInfo provider that constructs the InstanceInfo this this instance using
  * EurekaInstanceConfig.
  *
+ * InstanceInfo的Provider，该Provider通过EurekaInstanceConfig来构建InstanceInfo
+ *
+ * 该Provider是单例对象，它为DiscoveryClient 和 ApplicationInfoManager 提供相同的 InstanceInfo 数据
+ *
  * This provider is @Singleton scope as it provides the InstanceInfo for both DiscoveryClient
  * and ApplicationInfoManager, and need to provide the same InstanceInfo to both.
  *
@@ -45,7 +49,7 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
     @Override
     public synchronized InstanceInfo get() {
         if (instanceInfo == null) {
-            // Build the lease information to be passed to the server based on config
+            // 构建租约信息
             LeaseInfo.Builder leaseInfoBuilder = LeaseInfo.Builder.newBuilder()
                     .setRenewalIntervalInSecs(config.getLeaseRenewalIntervalInSeconds())
                     .setDurationInSecs(config.getLeaseExpirationDurationInSeconds());
